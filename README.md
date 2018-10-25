@@ -7,3 +7,10 @@
 Fetches Mapbox Terrain-RGB tiles for a geographical extent and converts them into a GeoTiff.
 
 Rewrite of https://github.com/sjsafranek/geotiff_elevation_generator
+
+Uses GDAL to build GeoTIFF.
+
+## Usage
+```
+$ go run *.go -token <mapbox_token> -zoom 13  -minlng -77.004897 -minlat -12.028719 -maxlng -76.965650 -maxlat -11.982242 -o out.tif
+```

@@ -45,7 +45,7 @@ var (
 
 func init() {
 	flag.StringVar(&MAPBOX_TOKEN, "token", DEFAULT_MAPBOX_TOKEN, "Mapbox access token")
-	flag.StringVar(&OUT_FILE, "out_file", DEFAULT_OUT_FILE, "Out file")
+	flag.StringVar(&OUT_FILE, "o", DEFAULT_OUT_FILE, "Out file")
 	flag.Float64Var(&MIN_LAT, "minlat", -85, "min latitude")
 	flag.Float64Var(&MAX_LAT, "maxlat", 85, "max latitude")
 	flag.Float64Var(&MIN_LNG, "minlng", -175, "min longitude")
