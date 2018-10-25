@@ -27,15 +27,20 @@ var (
 	OUT_FILE string = DEFAULT_OUT_FILE
 	// MAPBOX_TOKEN mapbox access token
 	MAPBOX_TOKEN string = DEFAULT_MAPBOX_TOKEN
-	MIN_LAT      float64
-	MAX_LAT      float64
-	MIN_LNG      float64
-	MAX_LNG      float64
-	ZOOM         int = DEFAULT_ZOOM
-	numWorkers   int
-	workwg       sync.WaitGroup
-	queue        chan xyz
-	mapBox       *mapbox.Mapbox
+	// MIN_LAT min latitude
+	MIN_LAT float64
+	// MAX_LAT max latitude
+	MAX_LAT float64
+	// MIN_LNG min longitude
+	MIN_LNG float64
+	// MAX_LNG max longitude
+	MAX_LNG float64
+	// ZOOM map zoom level
+	ZOOM       int = DEFAULT_ZOOM
+	numWorkers int
+	workwg     sync.WaitGroup
+	queue      chan xyz
+	mapBox     *mapbox.Mapbox
 )
 
 func init() {
