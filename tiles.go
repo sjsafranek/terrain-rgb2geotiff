@@ -11,13 +11,15 @@ func GetTileNames(minlat, maxlat, minlng, maxlng float64, z int) []xyz {
 
 	// Add buffer to make sure output image
 	// fills specified height and width.
-	for x := ll_tile_x - 2; x < ur_tile_x+2; x++ {
+	for x := ll_tile_x - 1; x < ur_tile_x+1; x++ {
+		// for x := ll_tile_x - 2; x < ur_tile_x+2; x++ {
 		if x < 0 {
 			x = 0
 		}
 		// Add buffer to make sure output image
 		// fills specified height and width.
-		for y := ur_tile_y - 2; y < ll_tile_y+2; y++ {
+		for y := ur_tile_y - 1; y < ll_tile_y+1; y++ {
+			// for y := ur_tile_y - 2; y < ll_tile_y+2; y++ {
 			if y < 0 {
 				y = 0
 			}
