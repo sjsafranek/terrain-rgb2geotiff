@@ -13,21 +13,25 @@ import (
 )
 
 const (
-	DEFAULT_OUT_FILE     string = "out.tif"
+	// DEFAULT_OUT_FILE default tif file to generate
+	DEFAULT_OUT_FILE string = "out.tif"
+	// DEFAULT_MAPBOX_TOKEN default mapbox access token
 	DEFAULT_MAPBOX_TOKEN string = ""
-	DEFAULT_ZOOM         int    = -1
-	DEFAULT_EXTENT       string = ""
+	// DEFAULT_ZOOM default map zoom level
+	DEFAULT_ZOOM int = -1
 )
 
 var (
-	OUT_FILE     string = DEFAULT_OUT_FILE
+	// OUT_FILE tif file to generate
+	OUT_FILE string = DEFAULT_OUT_FILE
+	// MAPBOX_TOKEN mapbox access token
 	MAPBOX_TOKEN string = DEFAULT_MAPBOX_TOKEN
 	MIN_LAT      float64
 	MAX_LAT      float64
 	MIN_LNG      float64
 	MAX_LNG      float64
 	ZOOM         int = DEFAULT_ZOOM
-	NUM_WORKERS  int
+	numWorkers   int
 	workwg       sync.WaitGroup
 	queue        chan xyz
 	mapBox       *mapbox.Mapbox
@@ -41,7 +45,7 @@ func init() {
 	flag.Float64Var(&MIN_LNG, "minlng", -175, "min longitude")
 	flag.Float64Var(&MAX_LNG, "maxlng", 175, "max longitude")
 	flag.IntVar(&ZOOM, "zoom", DEFAULT_ZOOM, "zoom. This will be automatically calculated if not provided.")
-	flag.IntVar(&NUM_WORKERS, "w", runtime.NumCPU(), "Number of workers")
+	flag.IntVar(&numWorkers, "w", runtime.NumCPU(), "Number of workers")
 	flag.Parse()
 
 	// Calculate zoom if not specified
@@ -62,11 +66,11 @@ func init() {
 	}
 	mapBox = mb
 
-	queue = make(chan xyz, NUM_WORKERS*2)
+	queue = make(chan xyz, numWorkers*2)
 }
 
 func main() {
-	start_time := time.Now()
+	startTime := time.Now()
 
 	tiles := GetTileNames(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
 
@@ -80,7 +84,7 @@ func main() {
 	}
 
 	log.Println("Spawning workers")
-	for i := 0; i < NUM_WORKERS; i++ {
+	for i := 0; i < numWorkers; i++ {
 		go worker(i)
 	}
 
@@ -97,5 +101,5 @@ func main() {
 	log.Println("Building GeoTIFF")
 	RunShellScript("./build_tiff.sh", OUT_FILE)
 
-	log.Println("Runtime:", time.Since(start_time))
+	log.Println("Runtime:", time.Since(startTime))
 }
