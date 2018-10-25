@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
-	"os"
+	// "os"
 
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
@@ -23,7 +24,14 @@ func worker(n int) {
 		}
 
 		// log.Println("Parsing tile", xyz)
-		fileHandler, err := os.Create(fmt.Sprintf("tmp/%v_%v_%v.csv", xyz.x, xyz.y, xyz.z))
+		// fileHandler, err := os.Create(fmt.Sprintf("tmp/%v_%v_%v.csv", xyz.x, xyz.y, xyz.z))
+		// if nil != err {
+		// 	panic(err)
+		// }
+		// defer fileHandler.Close()
+
+		basename := fmt.Sprintf("%v_%v_%v_*.csv", xyz.x, xyz.y, xyz.z)
+		fileHandler, err := ioutil.TempFile(DIRECTORY, basename)
 		if nil != err {
 			panic(err)
 		}

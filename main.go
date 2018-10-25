@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -36,7 +37,9 @@ var (
 	// MAX_LNG max longitude
 	MAX_LNG float64
 	// ZOOM map zoom level
-	ZOOM       int = DEFAULT_ZOOM
+	ZOOM int = DEFAULT_ZOOM
+	// DIRECTORY working temp directroy
+	DIRECTORY  string
 	numWorkers int
 	workwg     sync.WaitGroup
 	queue      chan xyz
@@ -89,6 +92,15 @@ func main() {
 		panic(errors.New("Too many map tiles. Please raise map zoom or change bounds"))
 	}
 
+	// create temp directroy
+	directory, err := ioutil.TempDir(os.TempDir(), "terrain-rgb")
+	if nil != err {
+		panic(err)
+	}
+	DIRECTORY = directory
+	defer os.RemoveAll(directory)
+	//.end
+
 	log.Println("Spawning workers")
 	for i := 0; i < numWorkers; i++ {
 		go worker(i)
@@ -105,7 +117,7 @@ func main() {
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	shell.RunScript("./build_tiff.sh", OUT_FILE)
+	shell.RunScript("./build_tiff.sh", DIRECTORY, OUT_FILE)
 
 	log.Println("Runtime:", time.Since(startTime))
 }

@@ -1,10 +1,11 @@
 #!/bin/bash
 
-OUT_FILE=$1
+DIRECTORY=$1
+OUT_FILE=$2
 
 # build tiff from each file
 echo "Building tif files from csv map tiles"
-for FILE in tmp/*.csv; do
+for FILE in $DIRECTORY/*.csv; do
     GEOTIFF="${FILE%.*}.tif"
     XYZ="${FILE%.*}.xyz"
 
@@ -17,9 +18,9 @@ for FILE in tmp/*.csv; do
 done
 
 echo "Merging tif files to $OUT_FILE"
-gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 tmp/*.tif $OUT_FILE
+gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
 
 # echo "Clean up"
-rm tmp/*.csv
-rm tmp/*.xyz
-rm tmp/*.tif
+# rm tmp/*.csv
+# rm tmp/*.xyz
+# rm tmp/*.tif
