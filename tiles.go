@@ -1,7 +1,7 @@
 package main
 
 // GetTileNames returns tile xyz for bounding box and zoom
-func GetTileNames(minlat, maxlat, minlng, maxlng float64, z int) []xyz {
+func GetTileNamesFromMapView(minlat, maxlat, minlng, maxlng float64, z int) []xyz {
 	tiles := []xyz{}
 
 	// upper right

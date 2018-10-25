@@ -72,7 +72,7 @@ func init() {
 func main() {
 	startTime := time.Now()
 
-	tiles := GetTileNames(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
+	tiles := GetTileNamesFromMapView(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
 
 	log.Printf(`Parameters:
 	extent:	[%v, %v, %v, %v]

@@ -35,11 +35,11 @@ var (
 
 func Worker(n int) {
 	for tile := range queue {
-		start_time := time.Now()
+		startTime := time.Now()
 		data := GetTilePngBytesFromUrl(tile.Url)
 		tile.Image = BytesToPngImage(data)
 		drawTile(output, &tile)
-		fmt.Println(n, tile.Z, tile.X, tile.Y, time.Since(start_time))
+		fmt.Println(n, tile.Z, tile.X, tile.Y, time.Since(startTime))
 		workwg.Done()
 	}
 }
@@ -70,11 +70,9 @@ func main() {
 
 	tiles := GetTileNames(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
 
-	cooked_tiles := 0
+	startTime := time.Now()
 
-	start_time := time.Now()
-
-	fmt.Println("Requesting tiles", time.Since(start_time))
+	fmt.Println("Requesting tiles")
 
 	for i := 0; i < NUM_WORKERS; i++ {
 		go Worker(i)
@@ -92,7 +90,6 @@ func main() {
 		}
 
 		workwg.Add(1)
-		cooked_tiles++
 		queue <- Tile{
 			X:   v.x,
 			Y:   v.y,
@@ -107,9 +104,11 @@ func main() {
 
 	workwg.Wait()
 
-	fmt.Println("Finished receiving tiles", cooked_tiles, time.Since(start_time))
+	fmt.Println("Finished receiving tiles", len(tiles))
 
 	savePng("./"+SAVEFILE, clipImage(output))
 
-	fmt.Println("Finished merging tiles", cooked_tiles, time.Since(start_time))
+	fmt.Println("Finished merging tiles", len(tiles))
+
+	fmt.Println("Runtime:", time.Since(startTime))
 }
