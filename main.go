@@ -81,7 +81,7 @@ func main() {
 
 	log.Println("Spawning workers")
 	for i := 0; i < NUM_WORKERS; i++ {
-		go Worker(i)
+		go worker(i)
 	}
 
 	log.Println("Requesting tiles")

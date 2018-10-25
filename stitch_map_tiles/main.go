@@ -107,7 +107,7 @@ func main() {
 
 	workwg.Wait()
 
-	fmt.Println("Finished recieving tiles", cooked_tiles, time.Since(start_time))
+	fmt.Println("Finished receiving tiles", cooked_tiles, time.Since(start_time))
 
 	savePng("./"+SAVEFILE, clipImage(output))
 

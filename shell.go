@@ -6,6 +6,7 @@ import (
 	"os/exec"
 )
 
+// RunShellScript executes shell script with supplied arguments.
 func RunShellScript(script string, args ...string) {
 	cmd := exec.Command(script, args...)
 	var stdout bytes.Buffer
@@ -15,7 +16,7 @@ func RunShellScript(script string, args ...string) {
 	err := cmd.Run()
 	if nil != err {
 		fmt.Println(stderr.String())
-		panic(err)
+		return
 	}
 	fmt.Println(stdout.String())
 }

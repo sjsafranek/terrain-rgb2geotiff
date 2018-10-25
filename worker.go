@@ -9,7 +9,7 @@ import (
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
 
-func Worker(n int) {
+func worker(n int) {
 	for xyz := range queue {
 		// fetch tile
 		highDPI := false
