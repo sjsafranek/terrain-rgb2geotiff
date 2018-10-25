@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ryankurte/go-mapbox/lib"
+	"github.com/sjsafranek/goutils/shell"
 )
 
 const (
@@ -99,7 +100,7 @@ func main() {
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	RunShellScript("./build_tiff.sh", OUT_FILE)
+	shell.RunScript("./build_tiff.sh", OUT_FILE)
 
 	log.Println("Runtime:", time.Since(startTime))
 }
