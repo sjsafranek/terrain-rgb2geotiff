@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	// "os"
+	"sync"
 
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
 
-func worker(n int) {
+func worker(queue chan xyz, directory string, workwg *sync.WaitGroup) {
 	for xyz := range queue {
 		// fetch tile
 		highDPI := false
@@ -30,12 +30,14 @@ func worker(n int) {
 		// }
 		// defer fileHandler.Close()
 
+		// create temp file
 		basename := fmt.Sprintf("%v_%v_%v_*.csv", xyz.x, xyz.y, xyz.z)
-		fileHandler, err := ioutil.TempFile(DIRECTORY, basename)
+		fileHandler, err := ioutil.TempFile(directory, basename)
 		if nil != err {
 			panic(err)
 		}
 		defer fileHandler.Close()
+		//.end
 
 		fmt.Fprintf(fileHandler, "x,y,z\n")
 
