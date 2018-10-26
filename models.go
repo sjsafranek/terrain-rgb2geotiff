@@ -20,11 +20,16 @@ type xyz struct {
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
 	mb, err := mapbox.NewMapbox(MAPBOX_TOKEN)
-	return &TerrainMap{MapBox: mb}, err
+	return &TerrainMap{MapBox: mb, zoom: 2}, err
 }
 
 type TerrainMap struct {
 	MapBox *mapbox.Mapbox
+	zoom   int
+}
+
+func (self *TerrainMap) SetZoom(zoom int) {
+	self.zoom = zoom
 }
 
 func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int, outFile string) {
