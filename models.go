@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/ryankurte/go-mapbox/lib"
+	"github.com/sjsafranek/goutils"
 	"github.com/sjsafranek/goutils/shell"
 )
 
@@ -72,4 +73,7 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 
 	log.Println("Building GeoTIFF")
 	shell.RunScript("./build_tiff.sh", directory, outFile)
+
+	files := utils.FilesInDirectory(directory)
+	log.Println(files)
 }

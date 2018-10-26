@@ -21,3 +21,9 @@ $ go run *.go \
     -maxlat -11.982242 \
     -o out.tif
 ```
+
+
+
+
+# TODO
+Move build_tiff.sh into go program
