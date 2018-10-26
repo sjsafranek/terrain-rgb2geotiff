@@ -52,7 +52,7 @@ func (self *TerrainMap) BuildGeoTIFFFromExtent(minLat, maxLat, minLng, maxLng fl
 
 	log.Println("Spawning workers")
 	for i := 0; i < numWorkers; i++ {
-		go worker(self.TerrainMap, queue, directory, &workwg)
+		go terrainWorker(self.TerrainMap, queue, directory, &workwg)
 	}
 
 	log.Println("Requesting tiles")

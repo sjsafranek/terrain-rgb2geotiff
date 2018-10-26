@@ -11,7 +11,7 @@ import (
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
 
-func worker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, workwg *sync.WaitGroup) {
+func terrainWorker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, workwg *sync.WaitGroup) {
 	for xyz := range queue {
 		// fetch tile
 		highDPI := false
