@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	// "fmt"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -75,39 +75,43 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	shell.RunScript("/bin/sh", "./build_tiff.sh", directory, outFile)
+	self.createGeoTIFFScript()
 
-	// files, _ := utils.FilesInDirectory(directory)
-	// for _, file := range files {
-	// 	err := self.csv2geotiff(file)
-	// 	if nil != err {
-	// 		log.Println(err)
-	// 	}
-	// }
+	// shell.RunScript("/bin/sh", "./build_tiff.sh", directory, outFile)
+	shell.RunScript("/bin/sh", "./build_geotiff.sh", directory, outFile)
 
-	// shell.RunScript("bash", "-c", fmt.Sprintf(`
-	// 	'gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 %v/*.tif %v'
-	// `, directory, outFile))
+	// cleanup
+	os.Remove("build_geotiff.sh")
 }
 
-/*
-func (self *TerrainMap) csv2geotiff(csvfile string) error {
-	xyzfile := strings.Replace(csvfile, ".csv", ".xyz", -1)
-	tiffile := strings.Replace(csvfile, ".csv", ".tif", -1)
-	log.Printf("Converting %v to %v", csvfile, tiffile)
+func (self TerrainMap) createGeoTIFFScript() {
+	script := `
+#!/bin/bash
 
-	shell.RunScript(`$(echo head -n 1 `+csvfile+`)`, ">", xyzfile)
-	shell.RunScript("tail", "-n", "+2", csvfile, "|", "sort", "-n", "-t", "','", "-k2", "-k1", ">>", xyzfile)
+DIRECTORY=$1
+OUT_FILE=$2
 
-	// cmd := fmt.Sprintf(`'$(echo head -n 1 "%v") >  "%v"; tail -n +2 "%v" | sort -n -t ',' -k2 -k1 >> "%v";'`, csvfile, xyzfile, csvfile, xyzfile)
-	// shell.RunScript("bash", "-c", cmd)
-	// fmt.Println("bash", "-c", cmd)
-	// out, err := exec.Command("bash", "-c", cmd).Output()
-	// log.Println(out)
-	// log.Println(err)
+# build tiff from each file
+echo "Building tif files from csv map tiles"
+for FILE in $DIRECTORY/*.csv; do
+    GEOTIFF="${FILE%.*}.tif"
+    XYZ="${FILE%.*}.xyz"
 
-	// shell.RunScript("bash", "-c", fmt.Sprintf("gdal_translate %v %v", xyzfile, tiffile))
+    echo "Building $XYZ from $FILE"
+    $(echo head -n 1 $FILE) >  "$XYZ"; \
+        tail -n +2 $FILE | sort -n -t ',' -k2 -k1 >> "$XYZ";
 
-	return nil
+    echo "Building $GEOTIFF from $XYZ"
+    gdal_translate "$XYZ" "$GEOTIFF"
+done
+
+echo "Merging tif files to $OUT_FILE"
+gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
+	`
+	file, err := os.Create("build_geotiff.sh")
+	if nil != err {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	fmt.Fprintf(file, script)
 }
-*/
