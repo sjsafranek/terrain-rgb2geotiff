@@ -19,8 +19,3 @@ done
 
 echo "Merging tif files to $OUT_FILE"
 gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
-
-# echo "Clean up"
-# rm tmp/*.csv
-# rm tmp/*.xyz
-# rm tmp/*.tif
