@@ -3,15 +3,10 @@ package main
 import (
 	"errors"
 	"flag"
-	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
-	"sync"
 	"time"
-
-	"github.com/ryankurte/go-mapbox/lib"
-	"github.com/sjsafranek/goutils/shell"
 )
 
 const (
@@ -38,9 +33,8 @@ var (
 	MAX_LNG float64
 	// ZOOM map zoom level
 	ZOOM int = DEFAULT_ZOOM
-
+	// numWorkers number of workers
 	numWorkers int
-	mapBox     *mapbox.Mapbox
 )
 
 func init() {
@@ -58,65 +52,25 @@ func init() {
 	if -1 == ZOOM {
 		panic(errors.New("Must supply a map zoom"))
 	}
+}
 
+func main() {
+	// If MAPBOX_TOKEN is not defined get from os environmental variables
 	if "" == MAPBOX_TOKEN {
 		MAPBOX_TOKEN = os.Getenv("MAPBOX_TOKEN")
 	}
+
 	if "" == MAPBOX_TOKEN {
 		panic(errors.New("Must supply a MAPBOX_TOKEN"))
 	}
 
-	mb, err := mapbox.NewMapbox(MAPBOX_TOKEN)
+	//
+	tmap, err := NewTerrainMap(MAPBOX_TOKEN)
 	if nil != err {
 		panic(err)
 	}
-	mapBox = mb
-}
 
-func BuildGeoTIFFFromExtent(minLat, maxLat, minLng, maxLng float64, zoom int, outFile string) {
-	tiles := GetTileNamesFromMapView(minLat, maxLat, minLng, maxLng, zoom)
-
-	log.Printf(`Parameters:
-	extent:	[%v, %v, %v, %v]
-	zoom:	%v
-	tiles:	%v`, minLat, maxLat, minLng, maxLng, zoom, len(tiles))
-
-	if 100 < len(tiles) {
-		panic(errors.New("Too many map tiles. Please raise map zoom or change bounds"))
-	}
-
-	// create temp directroy
-	directory, err := ioutil.TempDir(os.TempDir(), "terrain-rgb")
-	if nil != err {
-		panic(err)
-	}
-	defer os.RemoveAll(directory)
-	//.end
-
-	var workwg sync.WaitGroup
-	queue := make(chan xyz, numWorkers*2)
-
-	log.Println("Spawning workers")
-	for i := 0; i < numWorkers; i++ {
-		go worker(queue, directory, &workwg)
-	}
-
-	log.Println("Requesting tiles")
-	for _, v := range tiles {
-		workwg.Add(1)
-		queue <- v
-	}
-
-	close(queue)
-
-	workwg.Wait()
-
-	log.Println("Building GeoTIFF")
-	shell.RunScript("./build_tiff.sh", directory, outFile)
-}
-
-func main() {
 	startTime := time.Now()
-	BuildGeoTIFFFromExtent(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM, OUT_FILE)
+	tmap.BuildGeoTIFFFromExtent(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM, OUT_FILE)
 	log.Println("Runtime:", time.Since(startTime))
 }

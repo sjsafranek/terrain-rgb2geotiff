@@ -6,11 +6,12 @@ import (
 	"log"
 	"sync"
 
+	"github.com/ryankurte/go-mapbox/lib"
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
 
-func worker(queue chan xyz, directory string, workwg *sync.WaitGroup) {
+func worker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, workwg *sync.WaitGroup) {
 	for xyz := range queue {
 		// fetch tile
 		highDPI := false
