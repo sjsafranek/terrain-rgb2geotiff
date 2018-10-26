@@ -2,13 +2,16 @@ package main
 
 import (
 	"errors"
+	// "fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	// "os/exec"
+	// "strings"
 	"sync"
 
 	"github.com/ryankurte/go-mapbox/lib"
-	"github.com/sjsafranek/goutils"
+	// "github.com/sjsafranek/goutils"
 	"github.com/sjsafranek/goutils/shell"
 )
 
@@ -72,8 +75,39 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	shell.RunScript("./build_tiff.sh", directory, outFile)
+	shell.RunScript("/bin/sh", "./build_tiff.sh", directory, outFile)
 
-	files := utils.FilesInDirectory(directory)
-	log.Println(files)
+	// files, _ := utils.FilesInDirectory(directory)
+	// for _, file := range files {
+	// 	err := self.csv2geotiff(file)
+	// 	if nil != err {
+	// 		log.Println(err)
+	// 	}
+	// }
+
+	// shell.RunScript("bash", "-c", fmt.Sprintf(`
+	// 	'gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 %v/*.tif %v'
+	// `, directory, outFile))
 }
+
+/*
+func (self *TerrainMap) csv2geotiff(csvfile string) error {
+	xyzfile := strings.Replace(csvfile, ".csv", ".xyz", -1)
+	tiffile := strings.Replace(csvfile, ".csv", ".tif", -1)
+	log.Printf("Converting %v to %v", csvfile, tiffile)
+
+	shell.RunScript(`$(echo head -n 1 `+csvfile+`)`, ">", xyzfile)
+	shell.RunScript("tail", "-n", "+2", csvfile, "|", "sort", "-n", "-t", "','", "-k2", "-k1", ">>", xyzfile)
+
+	// cmd := fmt.Sprintf(`'$(echo head -n 1 "%v") >  "%v"; tail -n +2 "%v" | sort -n -t ',' -k2 -k1 >> "%v";'`, csvfile, xyzfile, csvfile, xyzfile)
+	// shell.RunScript("bash", "-c", cmd)
+	// fmt.Println("bash", "-c", cmd)
+	// out, err := exec.Command("bash", "-c", cmd).Output()
+	// log.Println(out)
+	// log.Println(err)
+
+	// shell.RunScript("bash", "-c", fmt.Sprintf("gdal_translate %v %v", xyzfile, tiffile))
+
+	return nil
+}
+*/
