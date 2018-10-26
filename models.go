@@ -20,14 +20,14 @@ type xyz struct {
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
 	mb, err := mapbox.NewMapbox(MAPBOX_TOKEN)
-	return &TerrainMap{TerrainMap: mb}, err
+	return &TerrainMap{MapBox: mb}, err
 }
 
 type TerrainMap struct {
-	TerrainMap *mapbox.Mapbox
+	MapBox *mapbox.Mapbox
 }
 
-func (self *TerrainMap) BuildGeoTIFFFromExtent(minLat, maxLat, minLng, maxLng float64, zoom int, outFile string) {
+func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int, outFile string) {
 	tiles := GetTileNamesFromMapView(minLat, maxLat, minLng, maxLng, zoom)
 
 	log.Printf(`Parameters:
@@ -52,7 +52,7 @@ func (self *TerrainMap) BuildGeoTIFFFromExtent(minLat, maxLat, minLng, maxLng fl
 
 	log.Println("Spawning workers")
 	for i := 0; i < numWorkers; i++ {
-		go terrainWorker(self.TerrainMap, queue, directory, &workwg)
+		go terrainWorker(self.MapBox, queue, directory, &workwg)
 	}
 
 	log.Println("Requesting tiles")

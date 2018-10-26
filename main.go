@@ -71,6 +71,6 @@ func main() {
 	}
 
 	startTime := time.Now()
-	tmap.BuildGeoTIFFFromExtent(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM, OUT_FILE)
+	tmap.Render(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM, OUT_FILE)
 	log.Println("Runtime:", time.Since(startTime))
 }
