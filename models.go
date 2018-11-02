@@ -75,16 +75,14 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	self.createGeoTIFFScript()
-
-	// shell.RunScript("/bin/sh", "./build_tiff.sh", directory, outFile)
-	shell.RunScript("/bin/sh", "./build_geotiff.sh", directory, outFile)
-
-	// cleanup
-	os.Remove("build_geotiff.sh")
+	err := self.buildGeoTIFF(directory, outFile)
+	if nil != err {
+		log.Fatal(err)
+	}
 }
 
-func (self TerrainMap) createGeoTIFFScript() {
+func (self TerrainMap) buildGeoTIFF(directory, outFile string) error {
+	// bash script contents
 	script := `
 #!/bin/bash
 
@@ -108,10 +106,18 @@ done
 echo "Merging tif files to $OUT_FILE"
 gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
 	`
-	file, err := os.Create("build_geotiff.sh")
+
+	// write to bash script
+	fh, err := ioutil.TempFile("", "build_geotiff.*.sh")
 	if nil != err {
-		log.Fatal(err)
+		return err
 	}
-	defer file.Close()
-	fmt.Fprintf(file, script)
+	fmt.Fprintf(fh, script)
+	fh.Close()
+	defer os.Remove(fh.Name())
+
+	// execute bash script
+	shell.RunScript("/bin/sh", fh.Name(), directory, outFile)
+
+	return nil
 }
