@@ -53,7 +53,7 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	if nil != err {
 		panic(err)
 	}
-	defer os.RemoveAll(directory)
+	// defer os.RemoveAll(directory)
 	//.end
 
 	var workwg sync.WaitGroup
@@ -75,7 +75,7 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	workwg.Wait()
 
 	log.Println("Building GeoTIFF")
-	err := self.buildGeoTIFF(directory, outFile)
+	err = self.buildGeoTIFF(directory, outFile)
 	if nil != err {
 		log.Fatal(err)
 	}
@@ -94,6 +94,8 @@ echo "Building tif files from csv map tiles"
 for FILE in $DIRECTORY/*.csv; do
     GEOTIFF="${FILE%.*}.tif"
     XYZ="${FILE%.*}.xyz"
+	#GEOTIFF=${FILE/.csv/.tif}
+    #XYZ=${FILE/.csv/.xyz}
 
     echo "Building $XYZ from $FILE"
     $(echo head -n 1 $FILE) >  "$XYZ"; \
@@ -117,6 +119,7 @@ gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
 	defer os.Remove(fh.Name())
 
 	// execute bash script
+	log.Println(directory, outFile)
 	shell.RunScript("/bin/sh", fh.Name(), directory, outFile)
 
 	return nil
