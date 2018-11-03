@@ -53,7 +53,7 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	if nil != err {
 		panic(err)
 	}
-	// defer os.RemoveAll(directory)
+	defer os.RemoveAll(directory)
 	//.end
 
 	var workwg sync.WaitGroup
