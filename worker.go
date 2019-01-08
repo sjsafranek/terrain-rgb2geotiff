@@ -47,14 +47,16 @@ func terrainWorker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, work
 
 				loc, err := tile.PixelToLocation(float64(x), float64(y))
 				if nil != err {
-					panic(err)
+					log.Println(err)
+					continue
 				}
 
 				ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
 
 				elevation, err := tile.GetAltitude(ll)
 				if nil != err {
-					panic(err)
+					log.Println(err)
+					continue
 				}
 
 				line := fmt.Sprintf("%v,%v,%v\n", loc.Longitude, loc.Latitude, elevation)
