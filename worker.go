@@ -18,18 +18,10 @@ func terrainWorker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, work
 		log.Println("Fetch tile", xyz)
 		tile, err := mapBox.Maps.GetTile(maps.MapIDTerrainRGB, xyz.x, xyz.y, xyz.z, maps.MapFormatPngRaw, highDPI)
 		if nil != err {
-			// panic(err)
 			log.Println(err)
 			workwg.Done()
 			continue
 		}
-
-		// log.Println("Parsing tile", xyz)
-		// fileHandler, err := os.Create(fmt.Sprintf("tmp/%v_%v_%v.csv", xyz.x, xyz.y, xyz.z))
-		// if nil != err {
-		// 	panic(err)
-		// }
-		// defer fileHandler.Close()
 
 		// create temp file
 		basename := fmt.Sprintf("%v_%v_%v_*.csv", xyz.x, xyz.y, xyz.z)

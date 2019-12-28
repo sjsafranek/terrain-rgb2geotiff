@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime"
@@ -15,12 +16,16 @@ const (
 	// DEFAULT_MAPBOX_TOKEN default mapbox access token
 	DEFAULT_MAPBOX_TOKEN string = ""
 	// DEFAULT_ZOOM default map zoom level
-	DEFAULT_ZOOM int = -1
+	// DEFAULT_ZOOM int = -1
+	// DEFAULT_OUT_FILE
+	DEFAULT_DB_TABLE string = ""
 )
 
 var (
 	// OUT_FILE tif file to generate
 	OUT_FILE string = DEFAULT_OUT_FILE
+	// DB_TABLE to import geotiffs into
+	DB_TABLE string = DEFAULT_DB_TABLE
 	// MAPBOX_TOKEN mapbox access token
 	MAPBOX_TOKEN string = DEFAULT_MAPBOX_TOKEN
 	// MIN_LAT min latitude
@@ -40,6 +45,7 @@ var (
 func init() {
 	flag.StringVar(&MAPBOX_TOKEN, "token", DEFAULT_MAPBOX_TOKEN, "Mapbox access token")
 	flag.StringVar(&OUT_FILE, "o", DEFAULT_OUT_FILE, "Out file")
+	flag.StringVar(&DB_TABLE, "table", DEFAULT_DB_TABLE, "Database table")
 	flag.Float64Var(&MIN_LAT, "minlat", -85, "min latitude")
 	flag.Float64Var(&MAX_LAT, "maxlat", 85, "max latitude")
 	flag.Float64Var(&MIN_LNG, "minlng", -175, "min longitude")
@@ -49,12 +55,10 @@ func init() {
 	flag.Parse()
 
 	// Calculate zoom if not specified
-	if -1 == ZOOM {
+	if 1 > ZOOM {
 		panic(errors.New("Must supply a map zoom"))
 	}
-}
 
-func main() {
 	// If MAPBOX_TOKEN is not defined get from os environmental variables
 	if "" == MAPBOX_TOKEN {
 		MAPBOX_TOKEN = os.Getenv("MAPBOX_TOKEN")
@@ -63,14 +67,28 @@ func main() {
 	if "" == MAPBOX_TOKEN {
 		panic(errors.New("Must supply a MAPBOX_TOKEN"))
 	}
+	//.end
+}
 
-	//
+func main() {
+
 	tmap, err := NewTerrainMap(MAPBOX_TOKEN)
 	if nil != err {
 		panic(err)
 	}
 
 	startTime := time.Now()
-	tmap.Render(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM, OUT_FILE)
+
+	directory, err := ioutil.TempDir(".", "terrain-rgb")
+	if nil != err {
+		panic(err)
+	}
+	log.Println(directory)
+
+	tmap.SetDirectory(directory)
+	tmap.SetZoom(ZOOM)
+	tmap.FetchTiles(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG)
+	tmap.BuildRasters()
+	tmap.Rasters2pgsql(DB_TABLE)
 	log.Println("Runtime:", time.Since(startTime))
 }
