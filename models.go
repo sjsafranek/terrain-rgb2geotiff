@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
-	// "os/exec"
-	// "strings"
 	"sync"
+	"strings"
+	"os"
 
 	"github.com/ryankurte/go-mapbox/lib"
-	// "github.com/sjsafranek/goutils"
-	"github.com/sjsafranek/goutils/shell"
 )
 
 const (
@@ -30,13 +27,28 @@ type xyz struct {
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
 	mb, err := mapbox.NewMapbox(MAPBOX_TOKEN)
-	return &TerrainMap{MapBox: mb, zoom: 2}, err
+	if nil != err {
+		return &TerrainMap{}, err
+	}
+
+	return &TerrainMap{MapBox: mb, zoom: DEFAULT_ZOOM}, err
 }
 
 type TerrainMap struct {
 	MapBox    *mapbox.Mapbox
 	zoom      int
 	directory string
+}
+
+func (self *TerrainMap) Destroy() error {
+	directory := self.getDirectory()
+	// check if in temp directory
+	if strings.HasPrefix(directory, os.TempDir()) {
+		// remove artificts
+		self.directory = ""
+		return os.RemoveAll(directory)
+	}
+	return nil
 }
 
 func (self *TerrainMap) SetZoom(zoom int) error {
@@ -63,11 +75,35 @@ func (self *TerrainMap) GetZoom() int {
 	return self.zoom
 }
 
-func (self *TerrainMap) SetDirectory(directory string) {
-	self.directory = directory
+func (self *TerrainMap) getDirectory() string {
+	if "" == self.directory {
+		// directory, err := os.Getwd()
+		directory, _ := ioutil.TempDir("", "terrain-rgb")
+		self.directory = directory
+	}
+	return self.directory
 }
 
-func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int, outFile string) {
+func (self TerrainMap) Render(out_file string) error {
+	log.Printf("Rendering to GeoTIFF: %v", out_file)
+	directory := self.getDirectory()
+	return createAndExecuteScript(directory, "merge_geotiffs_*.sh", fmt.Sprintf(`#!/bin/bash
+
+DIRECTORY="%v"
+OUT_FILE="%v"
+
+echo "Merging tif files to $OUT_FILE"
+gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
+	`, directory, out_file))
+}
+
+// FetchTiles
+func (self *TerrainMap) FetchTiles(minLat, maxLat, minLng, maxLng float64) error {
+	log.Printf("Fetch tiles")
+
+	directory := self.getDirectory()
+	zoom := self.GetZoom()
+
 	tiles := GetTileNamesFromMapView(minLat, maxLat, minLng, maxLng, zoom)
 
 	log.Printf(`Parameters:
@@ -76,16 +112,8 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 	tiles:	%v`, minLat, maxLat, minLng, maxLng, zoom, len(tiles))
 
 	if 100 < len(tiles) {
-		panic(errors.New("Too many map tiles. Please raise map zoom or change bounds"))
+		return errors.New("Too many map tiles. Please raise map zoom or change bounds")
 	}
-
-	// create temp directroy
-	directory, err := ioutil.TempDir(os.TempDir(), "terrain-rgb")
-	if nil != err {
-		panic(err)
-	}
-	defer os.RemoveAll(directory)
-	//.end
 
 	var workwg sync.WaitGroup
 	queue := make(chan xyz, numWorkers*2)
@@ -105,26 +133,21 @@ func (self *TerrainMap) Render(minLat, maxLat, minLng, maxLng float64, zoom int,
 
 	workwg.Wait()
 
-	log.Println("Building GeoTIFF")
-	err = self.buildGeoTIFF(directory, outFile)
-	if nil != err {
-		log.Fatal(err)
-	}
+	return self.tiles2Rasters()
 }
 
-func (self TerrainMap) buildGeoTIFF(directory, outFile string) error {
-	// bash script contents
-	script := `
-#!/bin/bash
+func (self TerrainMap) tiles2Rasters() error {
+	log.Printf("Converting tiles to geotiffs")
+	directory := self.getDirectory()
+	return createAndExecuteScript(directory, "tiles_to_geotiffs_*.sh", fmt.Sprintf(`#!/bin/bash
 
-DIRECTORY=$1
-OUT_FILE=$2
+DIRECTORY="%v"
 
 # build tiff from each file
 echo "Building tif files from csv map tiles"
 for FILE in $DIRECTORY/*.csv; do
-    GEOTIFF="${FILE%.*}.tif"
-    XYZ="${FILE%.*}.xyz"
+	GEOTIFF="${FILE%%.*}.tif"
+	XYZ="${FILE%%.*}.xyz"
 
     echo "Building $XYZ from $FILE"
     $(echo head -n 1 $FILE) >  "$XYZ"; \
@@ -133,165 +156,32 @@ for FILE in $DIRECTORY/*.csv; do
     echo "Building $GEOTIFF from $XYZ"
     gdal_translate "$XYZ" "$GEOTIFF"
 done
+	`, directory))
 
-echo "Merging tif files to $OUT_FILE"
-gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
-	`
-
-	// write to bash script
-	fh, err := ioutil.TempFile("", "build_geotiff.*.sh")
-	if nil != err {
-		return err
-	}
-	fmt.Fprintf(fh, script)
-	fh.Close()
-	defer os.Remove(fh.Name())
-
-	// execute bash script
-	log.Println(directory, outFile)
-	shell.RunScript("/bin/sh", fh.Name(), directory, outFile)
-
-	return nil
 }
 
-// RenderTiles
-func (self *TerrainMap) FetchTiles(minLat, maxLat, minLng, maxLng float64) error {
+func (self TerrainMap) Rasters2pgsql(dbname, dbuser, dbpass, dbtable, dbhost string, dbport int64) error {
+	log.Printf("Importing geotiffs to pgsql")
+	directory := self.getDirectory()
+	return createAndExecuteScript(directory, "rasters_to_pgsql_*.sh", fmt.Sprintf(`#!/bin/bash
 
-	if "" == self.directory {
-		path, _ := os.Getwd()
-		self.directory = path
-	}
+DIRECTORY="%v"
+DBTABLE="%v"
+DBNAME="%v"
+DBUSER="%v"
+DBPASS="%v"
+DBHOST="%v"
+DBPORT=%v
 
-	zoom := self.GetZoom()
-
-	tiles := GetTileNamesFromMapView(minLat, maxLat, minLng, maxLng, zoom)
-
-	log.Printf(`Parameters:
-	extent:	[%v, %v, %v, %v]
-	zoom:	%v
-	tiles:	%v`, minLat, maxLat, minLng, maxLng, zoom, len(tiles))
-
-	if 100 < len(tiles) {
-		return errors.New("Too many map tiles. Please raise map zoom or change bounds")
-	}
-
-	var workwg sync.WaitGroup
-	queue := make(chan xyz, numWorkers*2)
-
-	log.Println("Spawning workers")
-	for i := 0; i < numWorkers; i++ {
-		go terrainWorker(self.MapBox, queue, self.directory, &workwg)
-	}
-
-	log.Println("Requesting tiles")
-	for _, v := range tiles {
-		workwg.Add(1)
-		queue <- v
-	}
-
-	close(queue)
-
-	workwg.Wait()
-
-	return nil
-}
-
-func (self TerrainMap) BuildRasters() error {
-
-	if "" == self.directory {
-		path, _ := os.Getwd()
-		self.directory = path
-	}
-
-	// bash script contents
-	script := `
-#!/bin/bash
-
-DIRECTORY="` + self.directory + `"
-
-# build tiff from each file
-echo "Building tif files from csv map tiles"
-for FILE in $DIRECTORY/*.csv; do
-	GEOTIFF="${FILE%.*}.tif"
-	XYZ="${FILE%.*}.xyz"
-	#GEOTIFF="${GEOTIFF/(MISSING)/}"
-	#XYZ="${XYZ/(MISSING)/}"
-
-    echo "Building $XYZ from $FILE"
-    $(echo head -n 1 $FILE) >  "$XYZ"; \
-        tail -n +2 $FILE | sort -n -t ',' -k2 -k1 >> "$XYZ";
-
-    echo "Building $GEOTIFF from $XYZ"
-    gdal_translate "$XYZ" "$GEOTIFF"
-done
-	`
-
-	log.Println(script)
-
-	// write to bash script
-	fh, err := ioutil.TempFile("", "build_geotiff.*.sh")
-	if nil != err {
-		return err
-	}
-	fmt.Fprintf(fh, script)
-	fh.Close()
-	defer os.Remove(fh.Name())
-
-	// execute bash script
-	results, err := shell.RunScript("/bin/sh", fh.Name())
-	log.Println(err)
-	log.Println(results)
-
-	return nil
-}
-
-func (self TerrainMap) Rasters2pgsql(pg_table string) error {
-
-	if "" == self.directory {
-		path, _ := os.Getwd()
-		self.directory = path
-	}
-
-	// bash script contents
-	script := `
-#!/bin/bash
-
-DIRECTORY="` + self.directory + `"
-DBTABLE="` + pg_table + `"
-DBHOST="localhost"
-DBPORT=5432
-
-# cleanup
-rm tmp.sql
-psql -h $DBHOST -p $DBPORT -c 'DROP TABLE '"$DBTABLE"';'
+# cleanup table
+echo "DROP TABLE '"$DBTABLE"'" > "$DIRECTORY/import_to_pgsql.sql"
 
 # import
-raster2pgsql -d -I -C -M -F -t 256x256 -s 4326 $DIRECTORY/*.tif $DBTABLE > "tmp.sql"
+raster2pgsql -d -I -C -M -F -t 256x256 -s 4326 $DIRECTORY/*.tif $DBTABLE >> "$DIRECTORY/import_to_pgsql.sql"
 
 echo "Import to PostGreSQL"
-psql -h $DBHOST -p $DBPORT -f tmp.sql
-
-# cleanup
-rm tmp.sql
-	`
-
-	log.Println(script)
-
-	// write to bash script
-	fh, err := ioutil.TempFile("", "build_geotiff.*.sh")
-	if nil != err {
-		return err
-	}
-	fmt.Fprintf(fh, script)
-	fh.Close()
-	defer os.Remove(fh.Name())
-
-	// execute bash script
-	results, err := shell.RunScript("/bin/sh", fh.Name())
-	log.Println(err)
-	log.Println(results)
-
-	return nil
+PGPASSWORD=$DBPASS psql -U $DBUSER -d $DBNAME -h $DBHOST -p $DBPORT -f "$DIRECTORY/import_to_pgsql.sql"
+	`, directory, dbtable, dbname, dbuser, dbpass, dbhost, dbport))
 }
 
 //.end

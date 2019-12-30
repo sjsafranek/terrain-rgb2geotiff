@@ -9,6 +9,8 @@ import (
 	"github.com/ryankurte/go-mapbox/lib"
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
+
+	// "github.com/lukeroth/gdal"
 )
 
 func terrainWorker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, workwg *sync.WaitGroup) {

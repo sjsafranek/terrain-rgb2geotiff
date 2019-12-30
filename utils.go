@@ -1,19 +1,65 @@
 package main
 
 import (
-	"math"
+	"bytes"
+	"errors"
+	"io/ioutil"
+	"log"
+	"os"
+	"os/exec"
 )
 
-// degTorad converts degree to radians.
-func degTorad(deg float64) float64 {
-	return deg * math.Pi / 180
+// createTempFile
+func createTempFile(directory, filename string, content []byte) (*os.File, error) {
+	// create temp file
+	file, err := ioutil.TempFile(directory, filename)
+	if nil != err {
+		// cleanup bad file
+		defer os.Remove(file.Name())
+		return nil, err
+	}
+
+	// write file contents
+	if _, err := file.Write(content); err != nil {
+		return nil, err
+	}
+
+	// close file
+	if err := file.Close(); err != nil {
+		return nil, err
+	}
+
+	return file, nil
 }
 
-// deg2num converts latlng to tile number
-func deg2num(latDeg float64, lonDeg float64, zoom int) (int, int) {
-	latRad := degTorad(latDeg)
-	n := math.Pow(2.0, float64(zoom))
-	xtile := int((lonDeg + 180.0) / 360.0 * n)
-	ytile := int((1.0 - math.Log(math.Tan(latRad)+(1/math.Cos(latRad)))/math.Pi) / 2.0 * n)
-	return xtile, ytile
+// executeScript executes shell command with supplied arguments.
+func executeScript(script string, args ...string) (string, error) {
+	cmd := exec.Command(script, args...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if nil != err {
+		return "", errors.New(stderr.String())
+	}
+	return stdout.String(), nil
+}
+
+// createAndExecuteScript
+func createAndExecuteScript(directory, filename, content string) error {
+
+	log.Println(content)
+
+	file, err := createTempFile(directory, filename, []byte(content))
+	if nil != err {
+		return err
+	}
+
+	results, err := executeScript("/bin/sh", file.Name())
+
+	log.Println(err)
+	log.Println(results)
+
+	return err
 }
