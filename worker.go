@@ -3,62 +3,26 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"sync"
-
-	"github.com/ryankurte/go-mapbox/lib"
-	"github.com/ryankurte/go-mapbox/lib/base"
-	"github.com/ryankurte/go-mapbox/lib/maps"
-
-	// "github.com/lukeroth/gdal"
 )
 
-func terrainWorker(mapBox *mapbox.Mapbox, queue chan xyz, directory string, workwg *sync.WaitGroup) {
-	for xyz := range queue {
-		// fetch tile
-		highDPI := false
-		log.Println("Fetch tile", xyz)
-		tile, err := mapBox.Maps.GetTile(maps.MapIDTerrainRGB, xyz.x, xyz.y, xyz.z, maps.MapFormatPngRaw, highDPI)
-		if nil != err {
-			log.Println(err)
-			workwg.Done()
-			continue
-		}
+func tileWorker(queue chan *TerrainTile, directory string, workwg *sync.WaitGroup) {
+	for tile := range queue {
 
 		// create temp file
-		basename := fmt.Sprintf("%v_%v_%v_*.csv", xyz.x, xyz.y, xyz.z)
-		fileHandler, err := ioutil.TempFile(directory, basename)
+		// basename := fmt.Sprintf("%v_%v_%v_*.csv", tile.X(), tile.Y(), tile.Z())
+		basename := fmt.Sprintf("%v_%v_%v_*.xyz", tile.X(), tile.Y(), tile.Z())
+		fh, err := ioutil.TempFile(directory, basename)
 		if nil != err {
 			panic(err)
 		}
-		defer fileHandler.Close()
-		//.end
+		defer fh.Close()
 
-		fmt.Fprintf(fileHandler, "x,y,z\n")
-
-		for x := 0; x < tile.Bounds().Max.X; x++ {
-			for y := 0; y < tile.Bounds().Max.Y; y++ {
-
-				loc, err := tile.PixelToLocation(float64(x), float64(y))
-				if nil != err {
-					log.Println(err)
-					continue
-				}
-
-				ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
-
-				elevation, err := tile.GetAltitude(ll)
-				if nil != err {
-					log.Println(err)
-					continue
-				}
-
-				line := fmt.Sprintf("%v,%v,%v\n", loc.Longitude, loc.Latitude, elevation)
-				fmt.Fprintf(fileHandler, line)
-
-			}
+		// write file to xyz file
+		err = tile.ToXYZ(fh)
+		if nil != err {
+			panic(err)
 		}
-
 		workwg.Done()
 	}
 }

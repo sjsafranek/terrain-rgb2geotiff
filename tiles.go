@@ -1,7 +1,14 @@
 package main
 
 import (
+	"fmt"
+	// "io/ioutil"
+	"log"
 	"math"
+	"os"
+
+	"github.com/ryankurte/go-mapbox/lib/base"
+	"github.com/ryankurte/go-mapbox/lib/maps"
 )
 
 // degTorad converts degree to radians.
@@ -18,32 +25,75 @@ func deg2num(latDeg float64, lonDeg float64, zoom int) (int, int) {
 	return xtile, ytile
 }
 
-// GetTileNames returns tile xyz for bounding box and zoom
-func GetTileNamesFromMapView(minlat, maxlat, minlng, maxlng float64, z int) []xyz {
-	tiles := []xyz{}
+type TerrainTile struct {
+	maps *maps.Maps
+	tile *maps.Tile
+	x    uint64
+	y    uint64
+	z    uint64
+}
 
-	// upper right
-	ur_tile_x, ur_tile_y := deg2num(maxlat, maxlng, z)
-	// lower left
-	ll_tile_x, ll_tile_y := deg2num(minlat, minlng, z)
+func (self *TerrainTile) X() uint64 {
+	return self.x
+}
 
-	// Add buffer to make sure output image
-	// fills specified height and width.
-	for x := ll_tile_x - 1; x < ur_tile_x+1; x++ {
-		// for x := ll_tile_x - 2; x < ur_tile_x+2; x++ {
-		if x < 0 {
-			x = 0
-		}
-		// Add buffer to make sure output image
-		// fills specified height and width.
-		for y := ur_tile_y - 1; y < ll_tile_y+1; y++ {
-			// for y := ur_tile_y - 2; y < ll_tile_y+2; y++ {
-			if y < 0 {
-				y = 0
-			}
-			tiles = append(tiles, xyz{uint64(x), uint64(y), uint64(z)})
+func (self *TerrainTile) Y() uint64 {
+	return self.y
+}
+
+func (self *TerrainTile) Z() uint64 {
+	return self.z
+}
+
+func (self *TerrainTile) Fetch() error {
+	log.Println("Fetch tile", self.x, self.y, self.z)
+	highDPI := false
+	tile, err := self.maps.GetTile(maps.MapIDTerrainRGB, self.x, self.y, self.z, maps.MapFormatPngRaw, highDPI)
+	if nil != err {
+		return err
+	}
+	self.tile = tile
+	return nil
+}
+
+func (self *TerrainTile) GetTile() *maps.Tile {
+	return self.tile
+}
+
+func (self *TerrainTile) ToXYZ(fh *os.File) error {
+
+	if nil == self.tile {
+		err := self.Fetch()
+		if nil != err {
+			return err
 		}
 	}
 
-	return tiles
+	fmt.Fprintf(fh, "x,y,z\n")
+
+	// y axis needs to be sorted for xyz files
+	for y := 0; y < self.tile.Bounds().Max.Y; y++ {
+		for x := 0; x < self.tile.Bounds().Max.X; x++ {
+
+			loc, err := self.tile.PixelToLocation(float64(x), float64(y))
+			if nil != err {
+				log.Println(err)
+				continue
+			}
+
+			ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
+
+			elevation, err := self.tile.GetAltitude(ll)
+			if nil != err {
+				log.Println(err)
+				continue
+			}
+
+			line := fmt.Sprintf("%v,%v,%v\n", loc.Longitude, loc.Latitude, elevation)
+			fmt.Fprintf(fh, line)
+
+		}
+	}
+
+	return nil
 }

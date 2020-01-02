@@ -27,3 +27,45 @@ $ go run *.go \
 
 # TODO
 Move build_tiff.sh into go program
+
+
+
+
+
+
+
+
+
+
+https://docs.mapbox.com/help/troubleshooting/access-elevation-data/
+max is zoom 15
+
+
+
+
+
+
+
+
+
+
+export MAPBOX_TOKEN="<my_mapbox_token>"
+
+go run *.go \
+    -zoom 15 \
+    -minlng -77.004897 \
+    -minlat -12.028719 \
+    -maxlng -76.965650 \
+    -maxlat -11.982242 \
+    -o terrain.tif
+
+
+
+PGPASSWORD=dev psql -d geodev -U geodev -c "
+SELECT
+    ST_Value( rast, ST_SetSRID(ST_MakePoint(-77.0,-12.0),4326) ) AS value
+FROM
+    terrain
+WHERE
+    ST_Value( rast, ST_SetSRID(ST_MakePoint(-77.0,-12.0),4326) ) IS NOT NULL;
+"

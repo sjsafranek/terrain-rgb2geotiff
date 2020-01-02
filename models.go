@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"sync"
-	"strings"
 	"os"
+	"strings"
+	"sync"
 
 	"github.com/ryankurte/go-mapbox/lib"
 )
@@ -17,13 +17,6 @@ const (
 	ZOOM_MAX     int = 15
 	ZOOM_MIN     int = 1
 )
-
-// xyz
-type xyz struct {
-	x uint64
-	y uint64
-	z uint64
-}
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
 	mb, err := mapbox.NewMapbox(MAPBOX_TOKEN)
@@ -75,6 +68,37 @@ func (self *TerrainMap) GetZoom() int {
 	return self.zoom
 }
 
+// GetTileNames returns tile xyz for bounding box and zoom
+func (self *TerrainMap) getTilesFromMapView(minlat, maxlat, minlng, maxlng float64) []*TerrainTile {
+	tiles := []*TerrainTile{}
+
+	z := self.GetZoom()
+
+	// upper right
+	ur_tile_x, ur_tile_y := deg2num(maxlat, maxlng, z)
+
+	// lower left
+	ll_tile_x, ll_tile_y := deg2num(minlat, minlng, z)
+
+	// Add buffer to make sure output image
+	// fills specified height and width.
+	for x := ll_tile_x - 1; x < ur_tile_x+1; x++ {
+		if x < 0 {
+			x = 0
+		}
+		// Add buffer to make sure output image
+		// fills specified height and width.
+		for y := ur_tile_y - 1; y < ll_tile_y+1; y++ {
+			if y < 0 {
+				y = 0
+			}
+			tiles = append(tiles, &TerrainTile{maps: self.MapBox.Maps, x: uint64(x), y: uint64(y), z: uint64(z)})
+		}
+	}
+
+	return tiles
+}
+
 func (self *TerrainMap) getDirectory() string {
 	if "" == self.directory {
 		// directory, err := os.Getwd()
@@ -85,6 +109,11 @@ func (self *TerrainMap) getDirectory() string {
 }
 
 func (self TerrainMap) Render(out_file string) error {
+
+	if !strings.Contains(out_file, ".tif") {
+		out_file += ".tif"
+	}
+
 	log.Printf("Rendering to GeoTIFF: %v", out_file)
 	directory := self.getDirectory()
 	return createAndExecuteScript(directory, "merge_geotiffs_*.sh", fmt.Sprintf(`#!/bin/bash
@@ -104,7 +133,7 @@ func (self *TerrainMap) FetchTiles(minLat, maxLat, minLng, maxLng float64) error
 	directory := self.getDirectory()
 	zoom := self.GetZoom()
 
-	tiles := GetTileNamesFromMapView(minLat, maxLat, minLng, maxLng, zoom)
+	tiles := self.getTilesFromMapView(minLat, maxLat, minLng, maxLng)
 
 	log.Printf(`Parameters:
 	extent:	[%v, %v, %v, %v]
@@ -116,11 +145,11 @@ func (self *TerrainMap) FetchTiles(minLat, maxLat, minLng, maxLng float64) error
 	}
 
 	var workwg sync.WaitGroup
-	queue := make(chan xyz, numWorkers*2)
+	queue := make(chan *TerrainTile, numWorkers*2)
 
 	log.Println("Spawning workers")
 	for i := 0; i < numWorkers; i++ {
-		go terrainWorker(self.MapBox, queue, directory, &workwg)
+		go tileWorker(queue, directory, &workwg)
 	}
 
 	log.Println("Requesting tiles")
@@ -143,19 +172,22 @@ func (self TerrainMap) tiles2Rasters() error {
 
 DIRECTORY="%v"
 
-# build tiff from each file
-echo "Building tif files from csv map tiles"
+# build xyz from each file
 for FILE in $DIRECTORY/*.csv; do
-	GEOTIFF="${FILE%%.*}.tif"
 	XYZ="${FILE%%.*}.xyz"
-
     echo "Building $XYZ from $FILE"
     $(echo head -n 1 $FILE) >  "$XYZ"; \
         tail -n +2 $FILE | sort -n -t ',' -k2 -k1 >> "$XYZ";
-
-    echo "Building $GEOTIFF from $XYZ"
-    gdal_translate "$XYZ" "$GEOTIFF"
 done
+
+# build geotiff from each file
+echo "Building tif files from csv map tiles"
+for FILE in $DIRECTORY/*.xyz; do
+	GEOTIFF="${FILE%%.*}.tif"
+    echo "Building $GEOTIFF from $FILE"
+    gdal_translate "$FILE" "$GEOTIFF"
+done
+
 	`, directory))
 
 }

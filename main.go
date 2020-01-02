@@ -11,13 +11,10 @@ import (
 )
 
 const (
-	// DEFAULT_OUT_FILE default tif file to generate
-	DEFAULT_OUT_FILE string = "out.tif"
 	// DEFAULT_MAPBOX_TOKEN default mapbox access token
-	DEFAULT_MAPBOX_TOKEN string = ""
-	// DEFAULT_ZOOM default map zoom level
-	// DEFAULT_ZOOM int = -1
-	// DEFAULT_OUT_FILE
+	// DEFAULT_MAPBOX_TOKEN string = ""
+	// DEFAULT_OUT_FILE default tif file to generate
+	DEFAULT_OUT_FILE          string = ""
 	PROJECT                   string = "Terrain RGB Sticher"
 	VERSION                   string = "0.1.0"
 	DEFAULT_DATABASE_ENGINE   string = "postgres"
@@ -34,7 +31,8 @@ var (
 	OUT_FILE string = DEFAULT_OUT_FILE
 	// DB_TABLE to import geotiffs into
 	// MAPBOX_TOKEN mapbox access token
-	MAPBOX_TOKEN string = DEFAULT_MAPBOX_TOKEN
+	// MAPBOX_TOKEN string = DEFAULT_MAPBOX_TOKEN
+	MAPBOX_TOKEN string = os.Getenv("MAPBOX_TOKEN")
 	// MIN_LAT min latitude
 	MIN_LAT float64
 	// MAX_LAT max latitude
@@ -59,7 +57,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&MAPBOX_TOKEN, "token", DEFAULT_MAPBOX_TOKEN, "Mapbox access token")
+	// flag.StringVar(&MAPBOX_TOKEN, "token", DEFAULT_MAPBOX_TOKEN, "Mapbox access token")
+	flag.StringVar(&MAPBOX_TOKEN, "token", MAPBOX_TOKEN, "Mapbox access token")
 	flag.StringVar(&OUT_FILE, "o", DEFAULT_OUT_FILE, "Out file")
 	flag.StringVar(&DATABASE_TABLE, "table", DEFAULT_DATABASE_TABLE, "Database table")
 	flag.Float64Var(&MIN_LAT, "minlat", -85, "min latitude")
@@ -82,9 +81,9 @@ func init() {
 	}
 
 	// If MAPBOX_TOKEN is not defined get from os environmental variables
-	if "" == MAPBOX_TOKEN {
-		MAPBOX_TOKEN = os.Getenv("MAPBOX_TOKEN")
-	}
+	// if "" == MAPBOX_TOKEN {
+	// 	MAPBOX_TOKEN = os.Getenv("MAPBOX_TOKEN")
+	// }
 
 	if "" == MAPBOX_TOKEN {
 		panic(errors.New("Must supply a MAPBOX_TOKEN"))
@@ -103,8 +102,11 @@ func main() {
 
 	tmap.SetZoom(ZOOM)
 	tmap.FetchTiles(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG)
-	tmap.Render(OUT_FILE)
-	tmap.Rasters2pgsql(DATABASE_NAME, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_TABLE, DATABASE_HOST, DATABASE_PORT)
+	if "" != OUT_FILE {
+		tmap.Render(OUT_FILE)
+	} else {
+		tmap.Rasters2pgsql(DATABASE_NAME, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_TABLE, DATABASE_HOST, DATABASE_PORT)
+	}
 	tmap.Destroy()
 
 	log.Println("Runtime:", time.Since(startTime))
