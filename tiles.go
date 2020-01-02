@@ -60,7 +60,7 @@ func (self *TerrainTile) GetTile() *maps.Tile {
 	return self.tile
 }
 
-func (self *TerrainTile) ToXYZ(fh *os.File) error {
+func (self *TerrainTile) Write(fh *os.File) error {
 
 	if nil == self.tile {
 		err := self.Fetch()
@@ -71,6 +71,39 @@ func (self *TerrainTile) ToXYZ(fh *os.File) error {
 
 	fmt.Fprintf(fh, "x,y,z\n")
 
+	self.forEach(func(longitude, latitude, elevation float64) {
+		line := fmt.Sprintf("%v,%v,%v\n", longitude, latitude, elevation)
+		fmt.Fprintf(fh, line)
+	})
+
+	// // y axis needs to be sorted for xyz files
+	// for y := 0; y < self.tile.Bounds().Max.Y; y++ {
+	// 	for x := 0; x < self.tile.Bounds().Max.X; x++ {
+	//
+	// 		loc, err := self.tile.PixelToLocation(float64(x), float64(y))
+	// 		if nil != err {
+	// 			log.Println(err)
+	// 			continue
+	// 		}
+	//
+	// 		ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
+	//
+	// 		elevation, err := self.tile.GetAltitude(ll)
+	// 		if nil != err {
+	// 			log.Println(err)
+	// 			continue
+	// 		}
+	//
+	// 		line := fmt.Sprintf("%v,%v,%v\n", loc.Longitude, loc.Latitude, elevation)
+	// 		fmt.Fprintf(fh, line)
+	//
+	// 	}
+	// }
+
+	return nil
+}
+
+func (self *TerrainTile) forEach(clbk func(float64, float64, float64)) error {
 	// y axis needs to be sorted for xyz files
 	for y := 0; y < self.tile.Bounds().Max.Y; y++ {
 		for x := 0; x < self.tile.Bounds().Max.X; x++ {
@@ -89,11 +122,8 @@ func (self *TerrainTile) ToXYZ(fh *os.File) error {
 				continue
 			}
 
-			line := fmt.Sprintf("%v,%v,%v\n", loc.Longitude, loc.Latitude, elevation)
-			fmt.Fprintf(fh, line)
-
+			clbk(loc.Longitude, loc.Latitude, elevation)
 		}
 	}
-
 	return nil
 }

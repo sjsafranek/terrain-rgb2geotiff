@@ -30,6 +30,7 @@ func NewTerrainMap(token string) (*TerrainMap, error) {
 type TerrainMap struct {
 	MapBox    *mapbox.Mapbox
 	zoom      int
+	// View TerrainView
 	directory string
 }
 
