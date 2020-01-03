@@ -100,8 +100,10 @@ func main() {
 
 	startTime := time.Now()
 
-	tmap.SetZoom(ZOOM)
-	tmap.FetchTiles(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG)
+	tmap.SetView(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
+	// tmap.SetZoom(ZOOM)
+	// tmap.FetchTiles(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG)
+	tmap.FetchTiles()
 	if "" != OUT_FILE {
 		tmap.Render(OUT_FILE)
 	} else {
