@@ -19,7 +19,7 @@ const (
 )
 
 var (
-		ErrorViewNotSet error = errors.New("View not set")
+	ErrorViewNotSet error = errors.New("View not set")
 )
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
@@ -59,7 +59,7 @@ func (self *MapView) MaxLng() float64 {
 	return self.maxlng
 }
 
-func (self *MapView) GetTiles() ([]*TerrainTile) {
+func (self *MapView) GetTiles() []*TerrainTile {
 	tiles := []*TerrainTile{}
 
 	maxlat := self.MaxLat()
