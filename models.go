@@ -6,20 +6,25 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 
 	"github.com/ryankurte/go-mapbox/lib"
 )
 
+// https://docs.mapbox.com/help/troubleshooting/access-elevation-data/
+// max is zoom 15
 const (
 	DEFAULT_ZOOM int = 10
 	ZOOM_MAX     int = 15
 	ZOOM_MIN     int = 1
+	MAX_TILES int = 100
 )
 
 var (
 	ErrorViewNotSet error = errors.New("View not set")
+	ErrorZoomOutOfRange error = fmt.Errorf("Must supply a map zoom (%v to %v)", ZOOM_MIN, ZOOM_MAX)
 )
 
 func NewTerrainMap(token string) (*TerrainMap, error) {
@@ -28,7 +33,7 @@ func NewTerrainMap(token string) (*TerrainMap, error) {
 		return &TerrainMap{}, err
 	}
 
-	return &TerrainMap{MapBox: mb}, err
+	return &TerrainMap{mb: mb}, err
 }
 
 type MapView struct {
@@ -97,15 +102,8 @@ func (self *MapView) GetTiles() []*TerrainTile {
 }
 
 type TerrainMap struct {
-	MapBox *mapbox.Mapbox
+	mb *mapbox.Mapbox
 	view   *MapView
-	// zoom   int
-	// minlat float64
-	// maxlat float64
-	// minlng float64
-	// maxlng float64
-
-	// View TerrainView
 	directory string
 }
 
@@ -120,75 +118,10 @@ func (self *TerrainMap) Destroy() error {
 	return nil
 }
 
-// func (self *TerrainMap) SetZoom(zoom int) error {
-// 	if ZOOM_MIN > zoom {
-// 		return fmt.Errorf("Must supply a map zoom (%v to %v)", ZOOM_MIN, ZOOM_MAX)
-// 	}
-//
-// 	// https://docs.mapbox.com/help/troubleshooting/access-elevation-data/
-// 	// max is zoom 15
-// 	if zoom > ZOOM_MAX {
-// 		log.Printf("Mapbox Terrain-RGB tiles have a max zoom of %v\n", ZOOM_MAX)
-// 		log.Println("	See https://docs.mapbox.com/help/troubleshooting/access-elevation-data/ for more details")
-// 		zoom = ZOOM_MAX
-// 	}
-//
-// 	self.zoom = zoom
-// 	return nil
-// }
-//
-// func (self *TerrainMap) GetZoom() int {
-// 	if ZOOM_MAX < self.zoom || ZOOM_MIN > self.zoom {
-// 		return DEFAULT_ZOOM
-// 	}
-// 	return self.zoom
-// }
-
 func (self *TerrainMap) SetView(minlat, maxlat, minlng, maxlng float64, zoom int) {
 	self.view = &MapView{minlat: minlat, maxlat: maxlat, minlng: minlng, maxlng: maxlng, zoom: zoom}
 }
 
-// getTilesFromMapView returns tile xyz for bounding box and zoom
-// func (self *TerrainMap) getTilesFromMapView(minlat, maxlat, minlng, maxlng float64) ([]*TerrainTile, error) {
-// func (self *TerrainMap) getTilesFromMapView() ([]*TerrainTile, error) {
-// 	tiles := []*TerrainTile{}
-//
-// 	if nil == self.view {
-// 		return tiles, ErrorViewNotSet
-// 	}
-//
-// 	maxlat := self.view.MaxLat()
-// 	maxlng := self.view.MaxLng()
-// 	minlat := self.view.MinLat()
-// 	minlng := self.view.MinLng()
-//
-// 	// z := self.GetZoom()
-// 	z := self.view.Zoom()
-//
-// 	// upper right
-// 	ur_tile_x, ur_tile_y := deg2num(maxlat, maxlng, z)
-//
-// 	// lower left
-// 	ll_tile_x, ll_tile_y := deg2num(minlat, minlng, z)
-//
-// 	// Add buffer to make sure output image
-// 	// fills specified height and width.
-// 	for x := ll_tile_x - 1; x < ur_tile_x+1; x++ {
-// 		if x < 0 {
-// 			x = 0
-// 		}
-// 		// Add buffer to make sure output image
-// 		// fills specified height and width.
-// 		for y := ur_tile_y - 1; y < ll_tile_y+1; y++ {
-// 			if y < 0 {
-// 				y = 0
-// 			}
-// 			tiles = append(tiles, &TerrainTile{maps: self.MapBox.Maps, x: uint64(x), y: uint64(y), z: uint64(z)})
-// 		}
-// 	}
-//
-// 	return tiles, nil
-// }
 func (self *TerrainMap) getTilesFromMapView() ([]*TerrainTile, error) {
 	if nil == self.view {
 		return []*TerrainTile{}, ErrorViewNotSet
@@ -224,44 +157,35 @@ gdalwarp --config GDAL_CACHEMAX 3000 -wm 3000 $DIRECTORY/*.tif $OUT_FILE
 }
 
 // FetchTiles
-// func (self *TerrainMap) FetchTiles(minLat, maxLat, minLng, maxLng float64) error {
 func (self *TerrainMap) FetchTiles() error {
 	log.Printf("Fetch tiles")
 
 	directory := self.getDirectory()
-	// zoom := self.GetZoom()
-	// maxlat := self.view.MaxLat()
-	// maxlng := self.view.MaxLng()
-	// minlat := self.view.MinLat()
-	// minlng := self.view.MinLng()
 
-	// tiles := self.getTilesFromMapView(minLat, maxLat, minLng, maxLng)
 	tiles, err := self.getTilesFromMapView()
 	if nil != err {
 		return err
 	}
 
-	// log.Printf(`Parameters:
-	// extent:	[%v, %v, %v, %v]
-	// zoom:	%v
-	// tiles:	%v`, minLat, maxLat, minLng, maxLng, zoom, len(tiles))
+	// if MAX_TILES < len(tiles) {
+	// 	log.Println(len(tiles))
+	// 	return errors.New("Too many map tiles. Please raise map zoom or change bounds")
+	// }
 
-	if 100 < len(tiles) {
-		return errors.New("Too many map tiles. Please raise map zoom or change bounds")
-	}
-
+	numWorkers := runtime.NumCPU() * 2
 	var workwg sync.WaitGroup
-	queue := make(chan *TerrainTile, numWorkers*2)
+	queue := make(chan *TerrainTile, numWorkers)
 
 	log.Println("Spawning workers")
 	for i := 0; i < numWorkers; i++ {
-		go tileWorker(queue, directory, &workwg)
+		go tileWorkerXYZ(queue, directory, &workwg)
+		// go tileWorkerGeoTiff(queue, directory, &workwg)
 	}
 
 	log.Println("Requesting tiles")
 	for _, tile := range tiles {
 		// HACK...
-		tile.maps = self.MapBox.Maps
+		tile.maps = self.mb.Maps
 		workwg.Add(1)
 		queue <- tile
 	}
@@ -271,6 +195,7 @@ func (self *TerrainMap) FetchTiles() error {
 	workwg.Wait()
 
 	return self.tiles2Rasters()
+	// return nil
 }
 
 func (self TerrainMap) tiles2Rasters() error {
@@ -280,13 +205,13 @@ func (self TerrainMap) tiles2Rasters() error {
 
 DIRECTORY="%v"
 
-# build xyz from each file
-for FILE in $DIRECTORY/*.csv; do
-	XYZ="${FILE%%.*}.xyz"
-    echo "Building $XYZ from $FILE"
-    $(echo head -n 1 $FILE) >  "$XYZ"; \
-        tail -n +2 $FILE | sort -n -t ',' -k2 -k1 >> "$XYZ";
-done
+## build xyz from each file
+#for FILE in $DIRECTORY/*.csv; do
+#	XYZ="${FILE%%.*}.xyz"
+#    echo "Building $XYZ from $FILE"
+#    $(echo head -n 1 $FILE) >  "$XYZ"; \
+#        tail -n +2 $FILE | sort -n -t ',' -k2 -k1 >> "$XYZ";
+#done
 
 # build geotiff from each file
 echo "Building tif files from csv map tiles"

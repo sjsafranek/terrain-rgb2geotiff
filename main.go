@@ -6,7 +6,7 @@ import (
 	// "io/ioutil"
 	"log"
 	"os"
-	"runtime"
+	// "runtime"
 	"time"
 )
 
@@ -44,7 +44,7 @@ var (
 	// ZOOM map zoom level
 	ZOOM int = DEFAULT_ZOOM
 	// numWorkers number of workers
-	numWorkers int
+	// numWorkers int
 
 	//
 	DATABASE_ENGINE   string = DEFAULT_DATABASE_ENGINE
@@ -71,7 +71,7 @@ func init() {
 	flag.StringVar(&DATABASE_PASSWORD, "dbpass", DEFAULT_DATABASE_PASSWORD, "database password")
 	flag.StringVar(&DATABASE_USERNAME, "dbuser", DEFAULT_DATABASE_USERNAME, "database username")
 	flag.Int64Var(&DATABASE_PORT, "dbport", DEFAULT_DATABASE_PORT, "Database port")
-	flag.IntVar(&numWorkers, "w", runtime.NumCPU(), "Number of workers")
+	// flag.IntVar(&numWorkers, "w", runtime.NumCPU(), "Number of workers")
 
 	flag.Parse()
 
@@ -101,14 +101,18 @@ func main() {
 	startTime := time.Now()
 
 	tmap.SetView(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG, ZOOM)
-	// tmap.SetZoom(ZOOM)
-	// tmap.FetchTiles(MIN_LAT, MAX_LAT, MIN_LNG, MAX_LNG)
-	tmap.FetchTiles()
+
+	err = tmap.FetchTiles()
+	if nil != err {
+		log.Fatal(err)
+	}
+
 	if "" != OUT_FILE {
 		tmap.Render(OUT_FILE)
 	} else {
 		tmap.Rasters2pgsql(DATABASE_NAME, DATABASE_USERNAME, DATABASE_PASSWORD, DATABASE_TABLE, DATABASE_HOST, DATABASE_PORT)
 	}
+
 	tmap.Destroy()
 
 	log.Println("Runtime:", time.Since(startTime))
