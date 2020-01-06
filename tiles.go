@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"log"
 	"math"
 	"os"
@@ -10,6 +11,18 @@ import (
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
+
+// https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Go
+func tile2lon(x uint64, z uint64) float64 {
+	return float64(x)/math.Pow(2.0, float64(z))*360.0 - 180
+}
+
+func tile2lat(y uint64, z uint64) float64 {
+	n := math.Pi - (2.0*math.Pi*float64(y))/math.Pow(2.0, float64(z))
+	return math.Atan(math.Sinh(n)) * (180 / math.Pi)
+}
+
+//.end
 
 // degTorad converts degree to radians.
 func degTorad(deg float64) float64 {
@@ -119,17 +132,19 @@ func (self *TerrainTile) ToArray() ([]float64, error) {
 	for y := 0; y < self.tile.Bounds().Max.Y; y++ {
 		for x := 0; x < self.tile.Bounds().Max.X; x++ {
 
-			loc, err := self.tile.PixelToLocation(float64(x), float64(y))
-			if nil != err {
-				log.Fatal(err)
-			}
+			// loc, err := self.tile.PixelToLocation(float64(x), float64(y))
+			// if nil != err {
+			// 	log.Fatal(err)
+			// }
+			//
+			// ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
+			// elevation, err := self.tile.GetAltitude(ll)
+			// if nil != err {
+			// 	log.Println(err)
+			// }
 
-			ll := base.Location{Latitude: loc.Latitude, Longitude: loc.Longitude}
-
-			elevation, err := self.tile.GetAltitude(ll)
-			if nil != err {
-				log.Println(err)
-			}
+			px := self.tile.Image.At(x, y).(color.NRGBA)
+			elevation := maps.PixelToHeight(px.R, px.G, px.B)
 
 			pos := x + y*256
 			buffer[pos] = elevation
@@ -166,6 +181,15 @@ func (self *TerrainTile) Extent() ([4]float64, error) {
 	return [4]float64{bottom.Longitude, bottom.Latitude, top.Longitude, top.Latitude}, nil
 }
 
+func (self *TerrainTile) BBox() ([4]float64, error) {
+	return [4]float64{
+		tile2lon(self.x, self.z),
+		tile2lat(self.y, self.z),
+		tile2lon(self.x+1, self.z),
+		tile2lat(self.y+1, self.z),
+	}, nil
+}
+
 // BUG
 // 	- The data shifts to the south east...
 func (self *TerrainTile) WriteGeoTiff(filename string) error {
@@ -176,9 +200,12 @@ func (self *TerrainTile) WriteGeoTiff(filename string) error {
 	}
 
 	extent, err := self.Extent()
+	// extent, err := self.BBox()
 	if nil != err {
 		return err
 	}
+	// fmt.Println(self.Extent())
+	// fmt.Println(self.BBox())
 
 	log.Println("Loading driver")
 	driver, err := gdal.GetDriverByName("GTiff")
@@ -199,11 +226,11 @@ func (self *TerrainTile) WriteGeoTiff(filename string) error {
 	dataset.SetProjection(srString)
 
 	log.Println("Setting geotransform")
-	we_resolution := (extent[2] - extent[0])/256
-	ns_resolution := (extent[1] - extent[3])/256
+	we_resolution := (extent[2] - extent[0]) / 256
+	ns_resolution := (extent[1] - extent[3]) / 256
 	// https://gis.stackexchange.com/questions/165950/gdal-setgeotransform-does-not-work-as-expected
 	// geotransform = ([ your_top_left_x, 30, 0, your_top_left_y, 0, -30 ])
-	dataset.SetGeoTransform([6]float64{extent[2], we_resolution, 0, extent[3], 0, -1*(ns_resolution)})
+	dataset.SetGeoTransform([6]float64{extent[2], we_resolution, 0, extent[3], 0, -1 * (ns_resolution)})
 
 	log.Println("Writing to raster band")
 	raster := dataset.RasterBand(1)

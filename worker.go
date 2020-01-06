@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"sync"
 	"log"
+	"sync"
 )
 
 func tileWorkerXYZ(queue chan *TerrainTile, directory string, workwg *sync.WaitGroup) {
