@@ -4,39 +4,12 @@ import (
 	"fmt"
 	"image/color"
 	"log"
-	"math"
 	"os"
 
 	"github.com/lukeroth/gdal"
 	"github.com/ryankurte/go-mapbox/lib/base"
 	"github.com/ryankurte/go-mapbox/lib/maps"
 )
-
-// https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Go
-func tile2lon(x uint64, z uint64) float64 {
-	return float64(x)/math.Pow(2.0, float64(z))*360.0 - 180
-}
-
-func tile2lat(y uint64, z uint64) float64 {
-	n := math.Pi - (2.0*math.Pi*float64(y))/math.Pow(2.0, float64(z))
-	return math.Atan(math.Sinh(n)) * (180 / math.Pi)
-}
-
-//.end
-
-// degTorad converts degree to radians.
-func degTorad(deg float64) float64 {
-	return deg * math.Pi / 180
-}
-
-// deg2num converts latlng to tile number
-func deg2num(latDeg float64, lonDeg float64, zoom int) (int, int) {
-	latRad := degTorad(latDeg)
-	n := math.Pow(2.0, float64(zoom))
-	xtile := int((lonDeg + 180.0) / 360.0 * n)
-	ytile := int((1.0 - math.Log(math.Tan(latRad)+(1/math.Cos(latRad)))/math.Pi) / 2.0 * n)
-	return xtile, ytile
-}
 
 type TerrainTile struct {
 	maps *maps.Maps
